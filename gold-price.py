@@ -1,21 +1,20 @@
 import json
-import sys
 import time
 import urllib.request
 from datetime import datetime, date
-from typing import Tuple
 
-WDCACHE: dict = {}
+WDCACHE = {}
+GOLD_API = "https://api.jijinhao.com/quoteCenter/realTime.htm"
+HOLIDAY_API = "https://timor.tech/api/holiday/info/"
+UA = "Mozilla/5.0"
 
 
-def is_workday(day) -> bool:
+def is_workday(day):
     k = day.isoformat()
     if k in WDCACHE:
         return WDCACHE[k]
     try:
-        req = urllib.request.Request(
-            "https://timor.tech/api/holiday/info/" + k,
-            headers={"User-Agent": "Mozilla/5.0"})
+        req = urllib.request.Request(HOLIDAY_API + k, headers={"User-Agent": UA})
         with urllib.request.urlopen(req, timeout=10) as r:
             t = (json.loads(r.read().decode("utf-8", "ignore")).get("type") or {}).get("type")
         v = t in (0, 3)
@@ -25,21 +24,17 @@ def is_workday(day) -> bool:
     return v
 
 
-def log(msg: str = "") -> None:
-    sys.stderr.write(str(msg) + "\n")
-    sys.stderr.flush()
-
-
-def cmd_gold() -> Tuple[str, str, str, str]:
+def fetch_gold():
     ts = int(time.time() * 1000)
-    req = urllib.request.Request(
-        f"https://api.jijinhao.com/quoteCenter/realTime.htm?codes=JO_71,JO_42660&_={ts}",
-        headers={"referer": "https://quote.cngold.org/", "user-agent": "Mozilla/5.0"})
+    url = f"{GOLD_API}?codes=JO_71,JO_42660&_={ts}"
+    req = urllib.request.Request(url, headers={
+        "referer": "https://quote.cngold.org/",
+        "user-agent": UA,
+    })
     with urllib.request.urlopen(req, timeout=15) as resp:
         raw = resp.read().decode("utf-8", errors="replace")
     t = raw.strip().replace("var quote_json = ", "").rstrip(";")
     data = json.loads(t)
-    now = datetime.now()
     au = data.get("JO_71", {})
     price = str(au.get("q63", "") or "")
     chg_pct = str(au.get("q80", "") or "")
@@ -49,45 +44,28 @@ def cmd_gold() -> Tuple[str, str, str, str]:
             chg_pct = f"{float(chg_pct):+.2f}%"
         except Exception:
             pass
-    parts = [f"{now.month}.{now.day} {now.hour}.00 Gold: {price}（{chg_pct}）"]
-    if ctf:
-        try:
-            parts.append(f"Chow Tai Fook: {int(ctf)}")
-        except Exception:
-            pass
-    return " 丨".join(parts), price, chg_pct, ctf
+    return price, chg_pct, ctf
 
 
-def main() -> int:
-    if not is_workday(date.today()):
-        return 0
+def main(params):
+    force = bool(params.get("force"))
+
+    if not force and not is_workday(date.today()):
+        return {"status": "skipped", "content": "非工作日，跳过查询", "body": ""}
+
     try:
-        report, price, chg, ctf = cmd_gold()
+        price, chg, ctf = fetch_gold()
     except Exception as e:
-        log(f"金价查询失败: {e}")
-        return 1
+        return {"status": "failed", "content": f"金价查询失败: {e}", "body": ""}
+
     if not price:
-        log("金价查询失败: 未取到金价")
-        return 1
+        return {"status": "failed", "content": "金价查询失败: 未取到金价", "body": ""}
+
     body = f"今日金价{price}({chg})"
     if ctf:
         try:
             body += f" 周大福{float(ctf):.2f}"
         except Exception:
             body += f" 周大福{ctf}"
-    print(body)
-    return 0
 
-
-if __name__ == "__main__":
-    code = 0
-    try:
-        code = main()
-    except KeyboardInterrupt:
-        code = 1
-    except SystemExit as e:
-        code = e.code if isinstance(e.code, int) else 1
-    except Exception as e:
-        log(f"金价任务异常: {str(e)[:40]}")
-        code = 1
-    sys.exit(code)
+    return {"status": "success", "content": body, "body": body}
