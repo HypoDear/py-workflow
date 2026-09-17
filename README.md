@@ -1,2 +1,2 @@
-# py-scripts
-Personal Python scripts collection
+# py-workflow
+Personal Python scripts Workflow collection
