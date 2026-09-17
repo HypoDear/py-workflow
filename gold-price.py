@@ -1,7 +1,7 @@
 import json
 import time
 import urllib.request
-from datetime import datetime, date
+from datetime import date
 
 WDCACHE = {}
 GOLD_API = "https://api.jijinhao.com/quoteCenter/realTime.htm"
@@ -51,21 +51,21 @@ def main(params):
     force = bool(params.get("force"))
 
     if not force and not is_workday(date.today()):
-        return {"status": "skipped", "content": "非工作日，跳过查询", "body": ""}
+        return {"status": "skipped", "content": "非工作日，跳过查询"}
 
     try:
         price, chg, ctf = fetch_gold()
     except Exception as e:
-        return {"status": "failed", "content": f"金价查询失败: {e}", "body": ""}
+        return {"status": "failed", "content": f"金价查询失败: {e}"}
 
     if not price:
-        return {"status": "failed", "content": "金价查询失败: 未取到金价", "body": ""}
+        return {"status": "failed", "content": "金价查询失败: 未取到金价"}
 
-    body = f"今日金价{price}({chg})"
+    content = f"今日金价{price}({chg})"
     if ctf:
         try:
-            body += f" 周大福{float(ctf):.2f}"
+            content += f" 周大福{float(ctf):.2f}"
         except Exception:
-            body += f" 周大福{ctf}"
+            content += f" 周大福{ctf}"
 
-    return {"status": "success", "content": body, "body": body}
+    return {"status": "success", "content": content}
