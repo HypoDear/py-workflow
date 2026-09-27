@@ -1,6 +1,3 @@
-# kuaishou.py —— 输入 query（快手分享链接/文字），返回 {"content": 无水印直链}
-# 纯标准库，无需 Cookie、无需签名。
-# 默认取 H.264（兼容性最好，能正常出画面）；HEVC(H.265) 体积小但部分播放器只出声音。
 import json
 import re
 import urllib.request as R
@@ -10,7 +7,7 @@ UA = {
                   "(KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
     "Referer": "https://v.kuaishou.com/",
 }
-PREFER_CODEC = "h264"  # 想要小体积可改 "hevc"，但兼容性差
+PREFER_CODEC = "h264"
 
 
 def _get(u, timeout=20):
@@ -31,7 +28,6 @@ def _apollo(html):
 
 
 def _codec_url(node, codec):
-    """从 videoResource.json 里按编码取清晰度最高的直链"""
     res = node.get("videoResource") or {}
     j = res.get("json") if isinstance(res, dict) else None
     if isinstance(j, str):
@@ -70,12 +66,9 @@ def main(params):
                 break
         if not node:
             return {"content": ""}
-        # 1) 首选指定编码（默认 h264，保证有画面）
         url = _codec_url(node, PREFER_CODEC)
-        # 2) 兜底：另一编码
         if not url:
             url = _codec_url(node, "hevc" if PREFER_CODEC == "h264" else "h264")
-        # 3) 再兜底：节点自带的 photoUrl(h264) / photoH265Url(hevc)
         if not url and PREFER_CODEC == "h264":
             url = node.get("photoUrl") or node.get("photoH265Url") or ""
         if not url and PREFER_CODEC != "h264":
