@@ -29,7 +29,3 @@
 | `github-read.py` | `query` | 整句口语提问，脚本自行解析意图，如「查一下 py-workflow 里 amap-poi 的代码」「我有哪些仓库」「本周热门」 |
 
 `github-read.py` 仅实现 GET 请求，不提供任何写入能力。
-
-## 许可
-
-MIT
